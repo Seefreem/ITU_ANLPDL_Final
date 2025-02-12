@@ -45,12 +45,13 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+/cache
 *.cover
 *.py,cover
 .hypothesis/
 .pytest_cache/
 cover/
-
+test.*
 # Translations
 *.mo
 *.pot
@@ -126,6 +127,7 @@ celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
+*copy.py
 
 # Environments
 .env

@@ -10,9 +10,12 @@ from pprint import pprint
 from download_dataset import prepare_coqa, load_local_dataset, flatten_coqa_dataset
 from models import download_and_load_model
 from generate_answers import generate_answers_and_save, judge_answers_in_pickles
+from manifold_learning_isomap_viz import isomap_dimen_redu
+from gmms import train_gmms
 
 def main(args):
     # download dataset
+    print('#### load dataset')
     dataset = load_local_dataset(os.path.join(args.output_dir, args.dataset))
     print(dataset)
     pprint(dataset['train'][0])
@@ -21,22 +24,40 @@ def main(args):
     pprint(dataset['train'][:2])
 
     # download model
+    print('#### load model')
     model, tokenizer = download_and_load_model(args.model, args.output_dir)
 
+    # workspace
+    workspace_dir = os.path.join(args.output_dir, 'answers', args.dataset, args.model)
     # generate answers: for each QA pair, generate 5 answers.
-    save the final answers and the last token representations from each layer.
-    Results are saved into files
+    # save the final answers and the last token representations from each layer.
+    # Results are saved into files
+    print("#### generate answers")
     generate_answers_and_save(dataset=dataset['train'],
                               model=model,
                               tokenizer=tokenizer,
-                              output_dir=os.path.join(args.output_dir, 'answers', args.dataset, args.model))
+                              output_dir=workspace_dir)
 
     # LLM as a judge # Results are saved into files
+    print("#### assess generated answers")
     model, tokenizer = None, None
     model, tokenizer = download_and_load_model(args.judge_model, args.output_dir) 
-    judge_answers_in_pickles(os.path.join(args.output_dir, 'answers', args.dataset, args.model),
-                            model, tokenizer)
+    judge_answers_in_pickles(workspace_dir, model, tokenizer)
         
+    # visualize the representations. Graphs will be saved as PDFs
+    print("#### visualize representations and train GMMs")
+    for i in range(27):
+        last_hidden_states_n, gt_labels, projections = isomap_dimen_redu(
+            workspace_dir, layer=i, n_neighbors=10)
+
+        # train the GMMs model
+        models = train_gmms(last_hidden_states_n, 
+                            "./pics/"+f'BIC_and_AIC_plot_layer_{i}.pdf',
+                            n_components_start=10,
+                            n_components_end=150,
+                            n_components_step=10)
+
+
 
     pass
 

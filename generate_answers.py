@@ -123,13 +123,15 @@ def judge_answers_in_pickles(save_dir, model, tokenizer):
 
     # Find all pickle files matching "result_*.pkl" inside save_dir.
     pickle_files = glob.glob(os.path.join(save_dir, "result_*.pkl"))
-    print('pickle_files:', pickle_files)
+    # print('pickle_files:', pickle_files)
     if not pickle_files:
         print(f"No pickle files found in {save_dir}.")
         return
 
     # Create a directory to store the judged results.
-    judged_dir = os.path.join(os.path.dirname(save_dir), "judged_results")
+    judged_dir = os.path.join(save_dir, "judged_results")
+    # print('judged_dir:', save_dir,  judged_dir)
+    # return
     os.makedirs(judged_dir, exist_ok=True)
     
     # Define the generation parameters for the judging step.
@@ -144,7 +146,7 @@ def judge_answers_in_pickles(save_dir, model, tokenizer):
     gen_prefix = "Reading the passage and answer given question concisely."
     
     # Process each pickle file.
-    for idx, file_path in enumerate(pickle_files):
+    for idx, file_path in tqdm(enumerate(pickle_files)):
         with open(file_path, "rb") as f:
             result = pickle.load(f)
         
@@ -249,7 +251,7 @@ def judge_answers_in_pickles(save_dir, model, tokenizer):
         
         # Add the judgements to the result dictionary.
         result["judgements"] = judgements
-        # print('The judgement:', judgements)
+        result["known"] = (judgements.count("True") >= 4)
         result.pop('last_hidden_states') # to save more space
         
         # Save the updated result into the judged_results directory.

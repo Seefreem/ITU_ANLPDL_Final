@@ -4,7 +4,14 @@ import torch
 import glob
 import numpy as np 
 
+import torch.nn.functional as F
+
 from tqdm import tqdm  # For a progress bar
+
+def vram_usage(idx):
+    if idx % 200 == 0:
+        print(f'Mem (GB) :{torch.cuda.max_memory_allocated() / 1e9}')
+
 def generate_answers_and_save(dataset, model, tokenizer, output_dir):
     """
     For each QA pair in the dataset, this function:
@@ -49,14 +56,18 @@ def generate_answers_and_save(dataset, model, tokenizer, output_dir):
                 max_new_tokens=20,
                 return_dict_in_generate=True,
                 output_hidden_states=True,  # Request hidden states.
+                output_scores=True,  # Enable returning logits
             )
-        
+            vram_usage(idx)
             # The generated token ids; shape: (5, sequence_length)
             generated_ids = outputs.sequences
             answers = []
             # last_hidden_states_all = []
             # The prompt length so we can extract only the generated part.
             prompt_length = inputs["input_ids"].shape[1]
+            scores = outputs.scores  # Logits for each step in generation
+            # (step, [beam, vocab])
+            answer_probs = []
             
             # For each generated answer:
             for i in range(generated_ids.shape[0]):
@@ -65,14 +76,22 @@ def generate_answers_and_save(dataset, model, tokenizer, output_dir):
                 answer_ids = seq[prompt_length:]
                 answer_text = tokenizer.decode(answer_ids, skip_special_tokens=True).strip()
                 answers.append(answer_text)
-                # print('answer_text', answer_text)
+                # print('answer_ids', answer_ids)
+
+                # Compute probabilities from logits
+                token_logits = torch.cat([scores[step][i].unsqueeze(0) for step in range(len(scores))], dim=0)  # Shape (seq_len, vocab_size)
+                token_probs = F.softmax(token_logits, dim=-1)  # Convert logits to probabilities
+                # print('max token_probs', torch.argmax(token_probs, dim=1))
+                generated_probs = token_probs[torch.arange(len(answer_ids)), answer_ids].cpu().numpy()  # Probabilities of selected tokens
+                answer_probs.append(generated_probs.astype(np.float16).tolist())
+                
                 
             # Extract the last token representation of the input prompt from each layer.
             # outputs.hidden_states is a tuple of length L (usually L = num_layers + 1,
             # where the first element is the embeddings output).
             last_token_reps = []
             '''
-            shape: (step, layers, beams, token, vocab)
+            shape: (step, layers, beams, token, m_d)
             lken(outputs.hidden_states): 20
             len(element): 27
             layer torch.Size([5, 346, 2304])
@@ -90,7 +109,8 @@ def generate_answers_and_save(dataset, model, tokenizer, output_dir):
                 "prompt": prompt,
                 "generated_answers": answers,  # List of 5 answer strings.
                 "last_hidden_states": last_token_reps,  # List of 5 items, each a list of layer vectors.
-                "reference answer": ditem['answer']
+                "reference answer": ditem['answer'],
+                "generated_probs": answer_probs,  # Token probabilities
             }
             # print('Check:', result['prompt'], result['generated_answers'], result['reference answer'])
             # Save the result to a separate file.
@@ -232,7 +252,7 @@ def judge_answers_in_pickles(save_dir, model, tokenizer):
             # Generate the judgement.
             with torch.no_grad():
                 output = model.generate(**inputs, **judge_gen_kwargs)
-            
+            vram_usage(idx)
             # Decode the generated text.
             generated_text = tokenizer.decode(output[0][prompt_length:], skip_special_tokens=True).strip().lower()
             if idx < 10:

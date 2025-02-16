@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import pickle
 import glob
 import os
+import torch
 import pandas as pd
-
+from scipy.spatial import distance
 from time import time
 from sklearn.manifold import (
     Isomap
@@ -114,6 +115,33 @@ def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
     gt_labels = np.array(gt_labels).reshape((len(gt_labels), 1))
     print('last_hidden_states_n.shape', last_hidden_states_n.shape)
     print('gt_labels.shape', gt_labels.shape)
+    # return 
+    # explicit function to normalize array
+    def normalize_2d(matrix):
+        matrix = torch.from_numpy(matrix.astype(np.float16))
+        matrix = torch.nn.functional.normalize(matrix)
+        # norm = np.linalg.norm(matrix)
+        # matrix = matrix/norm # normalized matrix
+        return matrix.numpy()
+    last_hidden_states_n = normalize_2d(last_hidden_states_n)
+    # reduce the size
+    idx_list = []
+    for i in range(len(last_hidden_states_n)):
+        if len(idx_list) == 0:
+            idx_list.append(i)
+        else:
+            flag = False
+            for idx in range(len(idx_list)):
+                # print(last_hidden_states_n[i, :], last_hidden_states_n[idx,:])
+                # print(distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:]))
+                if (distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:])) < 0.9:
+                    print(distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:]))
+                    flag = True
+                    break
+            if flag:
+                idx_list.append(i)
+    print('Size: ', len(idx_list))
+            
     
     # print(gt_labels)
     # print(last_hidden_states_n)

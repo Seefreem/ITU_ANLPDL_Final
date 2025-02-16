@@ -51,6 +51,7 @@ def flatten_coqa_dataset(coqa_dataset):
             new_example["answer_start"] = answers["answer_start"][i]
             new_example["answer_end"] = answers["answer_end"][i]
             expanded_examples.append(new_example)
+            break # For now, only use one question for each context/passage
         return expanded_examples
 
     # Check if the input is a DatasetDict (with splits) or a single Dataset.

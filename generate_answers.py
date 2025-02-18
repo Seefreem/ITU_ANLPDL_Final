@@ -3,10 +3,11 @@ import pickle
 import torch
 import glob
 import numpy as np 
-
 import torch.nn.functional as F
 
+from pprint import pprint 
 from tqdm import tqdm  # For a progress bar
+from scipy.stats import entropy
 
 def vram_usage(idx):
     if idx % 200 == 0:
@@ -47,78 +48,80 @@ def generate_answers_and_save(dataset, model, tokenizer, output_dir):
         inputs = {k: v.to(device) for k, v in inputs.items()}
         
         # Generate 5 candidate answers.
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                do_sample=True,
-                num_return_sequences=5,
-                num_beams=5,
-                max_new_tokens=20,
-                return_dict_in_generate=True,
-                output_hidden_states=True,  # Request hidden states.
-                output_scores=True,  # Enable returning logits
-            )
-            vram_usage(idx)
-            # The generated token ids; shape: (5, sequence_length)
-            generated_ids = outputs.sequences
-            answers = []
-            # last_hidden_states_all = []
-            # The prompt length so we can extract only the generated part.
-            prompt_length = inputs["input_ids"].shape[1]
-            scores = outputs.scores  # Logits for each step in generation
-            # (step, [beam, vocab])
-            answer_probs = []
+        answers = []
+        answer_log_probs = []
+        last_token_reps = []
+        entropy_list = []
+        for i in range(5):
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    do_sample=True,
+                    num_return_sequences=1,
+                    num_beams=1,
+                    max_new_tokens=20,
+                    return_dict_in_generate=True,
+                    output_hidden_states=True,  # Request hidden states.
+                    output_scores=True,  # Enable returning logits. The log probabilities of tokens
+                    output_logits=True,
+                )
+                vram_usage(idx)
+                # The generated token ids; shape: (5, sequence_length)
+                generated_ids = outputs.sequences # (beam, sequence_length)
+                # The prompt length so we can extract only the generated part.
+                prompt_length = inputs["input_ids"].shape[1]
+                scores = outputs.scores  # Logits for each step in generation
             
-            # For each generated answer:
-            for i in range(generated_ids.shape[0]):
-                seq = generated_ids[i]
+                # For each generated answer:
+                seq = generated_ids[0]
                 # Remove the prompt tokens to get the generated answer text.
-                answer_ids = seq[prompt_length:]
+                answer_ids = seq[prompt_length:] # (sequence_length, )
                 answer_text = tokenizer.decode(answer_ids, skip_special_tokens=True).strip()
                 answers.append(answer_text)
-                # print('answer_ids', answer_ids)
 
-                # Compute probabilities from logits
-                token_logits = torch.cat([scores[step][i].unsqueeze(0) for step in range(len(scores))], dim=0)  # Shape (seq_len, vocab_size)
-                token_probs = F.softmax(token_logits, dim=-1)  # Convert logits to probabilities
-                # print('max token_probs', torch.argmax(token_probs, dim=1))
-                generated_probs = token_probs[torch.arange(len(answer_ids)), answer_ids].cpu().numpy()  # Probabilities of selected tokens
-                answer_probs.append(generated_probs.astype(np.float16).tolist())
+                # Entropy
+                logits = torch.cat(outputs.logits, dim=0)
+                # print(len(logits), logits.shape) # 8 torch.Size([8, 256000])
+                prob = torch.softmax(logits, dim=-1)
+                logprob = -1 * torch.log(prob)
                 
+                re_log_probs = logprob[torch.arange(len(answer_ids)) , answer_ids].cpu().numpy()
+                answer_log_probs.append(re_log_probs)
+
+                ent2 = 2**(entropy(prob.cpu().numpy(), base=2, axis=-1))
+                entropy_list.append(ent2)
                 
-            # Extract the last token representation of the input prompt from each layer.
-            # outputs.hidden_states is a tuple of length L (usually L = num_layers + 1,
-            # where the first element is the embeddings output).
-            last_token_reps = []
-            '''
-            shape: (step, layers, beams, token, m_d)
-            lken(outputs.hidden_states): 20
-            len(element): 27
-            layer torch.Size([5, 346, 2304])
-            layer torch.Size([5, 1, 2304])
-            '''
-            for layer_hidden in outputs.hidden_states[0]:
-                # layer_hidden has shape (num_return_sequences, seq_len, hidden_size)
-                # For the current generated sequence, pick the last token.
-                last_token_rep = layer_hidden[0, -1, :].detach().cpu().float().numpy().astype(np.float16) 
-                last_token_reps.append(last_token_rep)
-            # last_hidden_states_all.append(last_token_reps)
-            
-            # Append results for this QA pair.
-            result = {
-                "prompt": prompt,
-                "generated_answers": answers,  # List of 5 answer strings.
-                "last_hidden_states": last_token_reps,  # List of 5 items, each a list of layer vectors.
-                "reference answer": ditem['answer'],
-                "generated_probs": answer_probs,  # Token probabilities
-            }
-            # print('Check:', result['prompt'], result['generated_answers'], result['reference answer'])
-            # Save the result to a separate file.
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            output_file = os.path.join(output_dir, f"result_{idx:06d}.pkl")
-            with open(output_file, "wb") as f:
-                pickle.dump(result, f)
+                # Extract the last token representation of the input prompt from each layer.
+                # outputs.hidden_states is a tuple of length L (usually L = num_layers + 1,
+                # where the first element is the embeddings output).
+                '''
+                shape: (step, layers, beams, token, m_d)
+                lken(outputs.hidden_states): 20
+                len(element): 27
+                layer torch.Size([5, 346, 2304])
+                layer torch.Size([5, 1, 2304])
+                '''
+                if i == 0:
+                    print(len(outputs.hidden_states), len(outputs.hidden_states[0]), outputs.hidden_states[0][0].shape)
+                    for layer_hidden in outputs.hidden_states[0]:
+                        # layer_hidden has shape (num_return_sequences, seq_len, hidden_size)
+                        # For the current generated sequence, pick the last token.
+                        last_token_rep = layer_hidden[0, -1, :].detach().cpu().float().numpy().astype(np.float16) 
+                        last_token_reps.append(last_token_rep)
+        result = {
+            "prompt": prompt,
+            "generated_answers": answers,  # List of 5 answer strings.
+            "last_hidden_states": last_token_reps,  # List of 5 items, each a list of layer vectors.
+            "reference answer": ditem['answer'],
+            "generated_log_probs": answer_log_probs,  # Token probabilities
+            "entropy": entropy_list,
+        }
+        # Save the result to a separate file.
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        output_file = os.path.join(output_dir, f"result_{idx:06d}.pkl")
+        with open(output_file, "wb") as f:
+            pickle.dump(result, f)
 
 
 def judge_answers_in_pickles(save_dir, model, tokenizer):

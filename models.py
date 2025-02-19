@@ -14,4 +14,6 @@ def download_and_load_model(model_name, save_dir):
         torch_dtype=torch.bfloat16,
         padding_side="left",
     )
+    if 'llama' in model_name.lower():
+        tokenizer.pad_token_id = tokenizer.eos_token_id
     return model, tokenizer

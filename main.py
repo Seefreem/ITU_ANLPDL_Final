@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default='google/gemma-2-2b-it')
     parser.add_argument("--judge_model", type=str, default='google/gemma-2-9b-it')
     parser.add_argument("--output_dir", type=str, default='./cache') # required=True, 
-    print(f"\n\n ## args: {args} \n\n")
     args = parser.parse_args()
+    print(f"\n\n ## args: {args} \n\n")
     main(args)
 

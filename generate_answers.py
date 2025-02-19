@@ -37,12 +37,18 @@ def generate_answers_and_save(dataset, model, tokenizer, output_dir):
     for idx, ditem in enumerate(tqdm(dataset, desc="Processing QA pairs")):
         # Construct the prompt.
         # (Note: we use ditem['question'] because we have flattened the dataset.)
-        prompt = (
-            f"Reading the passage and answer given question concisely.\n\n"
-            f"Passage:\n{ditem['story']}\n\n"
-            f"Question: {ditem['question']}\nAnswer:"
-        )
-        
+        prompt = ''
+        if 'coqa' in output_dir:
+            prompt = (
+                f"Reading the passage and answer given question concisely.\n\n"
+                f"Passage:\n{ditem['story']}\n\n"
+                f"Question: {ditem['question']}\nAnswer:"
+            )
+        elif 'trivia_qa' in output_dir:
+            prompt = (
+                f"Answer given question concisely.\n\n"
+                f"Question: {ditem['question']}\nAnswer:"
+            )    
         # Tokenize the prompt.
         inputs = tokenizer(prompt, return_tensors="pt")
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -178,7 +184,7 @@ def judge_answers_in_pickles(save_dir, model, tokenizer):
         if original_prompt.startswith(gen_prefix):
             cleaned_prompt = original_prompt[len(gen_prefix):].strip()
         else:
-            cleaned_prompt = original_prompt.strip()
+            cleaned_prompt = "None"
         
         # Prepare to store the LLM's judgments for each generated answer.
         judgements = []
@@ -192,50 +198,9 @@ def judge_answers_in_pickles(save_dir, model, tokenizer):
             #   4. Append the instruction for the expected output.
             judge_prompt = (
                 "## System prompt\n You are an critical examiner and your job is to assess if an answer is essentially the same as the reference answer.\n\n"
-                "Asswss the candedate answer and the reference answer Through the following four criteria: "
+                "Assess the candedate answer and the reference answer Through the following four criteria: "
                 "1) Identifying subtle differences, 2)evaluating clarity and precision, 3) semantc equivalency, and 4)critical thinking. "
                 "\nIf they are essentially the same answer to the target question, respond with \"True\", else respond with \"False\"."
-                # "\n## Examples:"
-                # "\n## Question: Which film was predicted to win?"
-                # "\nReference Answer: { Boyhood }"
-                # "\nCandidate Answer: { \"Birdman\" }"
-                # "\nExplanation: The candidate answer means that Birdman was predicted to win. It means differently from the reference answer.\n"
-                # "\n```json\n{\n\"Assessment\": False\n}\n```"
-
-                # "\n## Question: Which film was predicted to win?"
-                # "\nReference Answer: { Boyhood }"
-                # "\nCandidate Answer: { \"Boyhood\" and \"Birdman\" }"
-                # "\n Explanation: The candidate answer means that both Boyhood and Birdman were predicted to win. However in the reference answer, only Boyhood was predicted to win. \n"
-                # "\n```json\n{\n\"Assessment\": False\n}\n```"
-
-                # "\n## Question: Which film was predicted to win?"
-                # "\nReference Answer: { Boyhood or Birdman }"
-                # "\nCandidate Answer: { \"Boyhood\" }"
-                # "\n Explanation: The candidate answer means that Boyhood was predicted to win. It complies with the reference answer where Boyhood or Birdman was predicted to win. \n"
-                # "\n```json\n{\n\"Assessment\": True\n}\n```"
-
-                
-
-                # "\n## Question: Which film was predicted to win?"
-                # "\nReference Answer: { Boyhood and Birdman }"
-                # "\nCandidate Answer: { \"Boyhood\" }"
-                # "\n Explanation: The candidate answer means that Boyhood was predicted to win. It does not complies with the reference answer where both Boyhood and Birdman were predicted to win. . \n"
-                # "\n```json\n{\n\"Assessment\": False\n}\n```"
-
-
-                # "\n## Question: Which film was predicted to win?"
-                # "\nReference Answer: { Boyhood }"
-                # "\nCandidate Answer: { \"Boyhood\" was predicted to win. }"
-                # "\n Explanation: The candidate answer is a paraphrase of the reference answer. They mean the same thing. \n"
-                # "\n```json\n{\n\"Assessment\": True\n}\n```"
-
-                
-                # "\n## Question: Which film was predicted to win?"
-                # "\nReference Answer: { Boyhood }"
-                # "\nCandidate Answer: { \"Boyhood\" and \"Birdman\" were predicted to win. }"
-                # "\n Explanation: The candidate answer means that both Boyhood and Birdman were predicted to win. It is not the same as the reference answer where only Boyhood was predicted to win. \n"
-                # "\n```json\n{\n\"Assessment\": False\n}\n```"
-                
                 
                 "\n## Task\nNow assess the following candedate answer:"
                 f"\n## Context\n{ {cleaned_prompt} }" # cleaned_prompt.find('Question:'):cleaned_prompt.find('Answer:')

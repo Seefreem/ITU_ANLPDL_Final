@@ -3,6 +3,24 @@ import os
 
 from pathlib import Path
 
+def prepare_triviaqa(save_dir):
+    # Load the dataset
+    ds = datasets.load_dataset("trivia_qa", "rc.nocontext")
+    # ds["train"] = ds["train"].select(range(7000))  # Selects first 7000 samples
+    # Function to process each example
+    def process_example(example):
+        # Extract 'aliases' from the 'answer' field and concatenate them
+        concatenated_aliases = "; ".join(example["answer"]["aliases"])
+        example["answer"] = concatenated_aliases  # Replace answer with the concatenated aliases
+        return example
+
+    # Apply transformation to all splits
+    ds = ds.map(process_example)
+    # Save the modified dataset
+    ds.save_to_disk(str(Path(save_dir)))
+    print(ds)
+    return ds
+
 def prepare_coqa(save_dir):
     ds = datasets.load_dataset("stanfordnlp/coqa")
     # print(ds)
@@ -16,8 +34,14 @@ def load_local_dataset(save_dir):
     if os.path.exists(save_dir):
         print(f"Loading dataset from {save_dir} ...")
         return datasets.load_from_disk(str(save_dir))
-    else:
-        return prepare_coqa(save_dir)
+    else: 
+        if 'coqa' in save_dir:
+            return prepare_coqa(save_dir)
+        elif 'trivia_qa' in save_dir:
+            return prepare_triviaqa(save_dir)
+        else:
+            print(f'ERROR, unknown dataset {save_dir}')
+            return None
     
 def flatten_coqa_dataset(coqa_dataset):
     """

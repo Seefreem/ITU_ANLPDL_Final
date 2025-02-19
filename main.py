@@ -18,17 +18,17 @@ def main(args):
     print('#### load dataset')
     dataset = load_local_dataset(os.path.join(args.output_dir, args.dataset))
     print(dataset)
-    pprint(dataset['train'][0])
-    dataset = flatten_coqa_dataset(dataset)
-    print('After flattening: ', dataset, )
+    if 'coqa' in args.dataset:
+        dataset = flatten_coqa_dataset(dataset)
+        print('After flattening: ', dataset, )
     pprint(dataset['train'][:2])
+    # workspace
+    workspace_dir = os.path.join(args.output_dir, 'answers', args.dataset, args.model)
 
     # download model
     print('#### load model')
     model, tokenizer = download_and_load_model(args.model, args.output_dir)
 
-    # workspace
-    workspace_dir = os.path.join(args.output_dir, 'answers', args.dataset, args.model)
     # generate answers: for each QA pair, generate 5 answers.
     # save the final answers and the last token representations from each layer.
     # Results are saved into files
@@ -63,10 +63,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default='coqa')
+    parser.add_argument("--dataset", type=str, default='coqa') # coqa, trivia_qa
     parser.add_argument("--model", type=str, default='google/gemma-2-2b-it')
     parser.add_argument("--judge_model", type=str, default='google/gemma-2-9b-it')
     parser.add_argument("--output_dir", type=str, default='./cache') # required=True, 
+    print(f"\n\n ## args: {args} \n\n")
     args = parser.parse_args()
     main(args)
 

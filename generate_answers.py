@@ -70,6 +70,7 @@ def generate_answers_and_save(dataset, model, tokenizer, output_dir):
                     output_hidden_states=True,  # Request hidden states.
                     output_scores=True,  # Enable returning logits. The log probabilities of tokens
                     output_logits=True,
+                    pad_token_id = tokenizer.eos_token_id
                 )
                 vram_usage(idx)
                 # The generated token ids; shape: (5, sequence_length)

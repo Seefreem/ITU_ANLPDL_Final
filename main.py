@@ -23,8 +23,10 @@ def main(args):
         print('After flattening: ', dataset, )
     pprint(dataset['train'][:2])
     # workspace
-    workspace_dir = os.path.join(args.output_dir, 'answers', args.dataset, args.model)
-
+    workspace_dir = os.path.join(args.output_dir, 'answers', args.dataset, args.data_split, args.model)
+    
+    if args.data_split == 'test' and args.dataset == 'coqa':
+        args.data_split = 'validation'
     # download model
     print('#### load model')
     model, tokenizer = download_and_load_model(args.model, args.output_dir)
@@ -46,17 +48,17 @@ def main(args):
         
     # visualize the representations. Graphs will be saved as PDFs
     print("#### visualize representations and train GMMs")
-    for i in range(27):
+    for i in range(27-1, 10, -3):
+        print('Layer', i)
         last_hidden_states_n, gt_labels, projections = isomap_dimen_redu(
             workspace_dir, layer=i, n_neighbors=10)
 
         # train the GMMs model
         models = train_gmms(last_hidden_states_n, 
                             "./pics/"+f'BIC_and_AIC_plot_layer_{i}.pdf',
-                            n_components_start=10,
-                            n_components_end=150,
-                            n_components_step=10)
-
+                            n_components_start=5,
+                            n_components_end=7,
+                            n_components_step=1)
 
 
     pass
@@ -67,6 +69,8 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default='google/gemma-2-2b-it')
     parser.add_argument("--judge_model", type=str, default='google/gemma-2-9b-it')
     parser.add_argument("--output_dir", type=str, default='./cache') # required=True, 
+    parser.add_argument("--data_split", type=str, default='train') 
+    
     args = parser.parse_args()
     print(f"\n\n ## args: {args} \n\n")
     main(args)

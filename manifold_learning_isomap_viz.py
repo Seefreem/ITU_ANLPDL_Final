@@ -123,24 +123,24 @@ def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
         # norm = np.linalg.norm(matrix)
         # matrix = matrix/norm # normalized matrix
         return matrix.numpy()
-    last_hidden_states_n = normalize_2d(last_hidden_states_n)
+    # last_hidden_states_n = normalize_2d(last_hidden_states_n)
     # reduce the size
     idx_list = []
-    for i in range(len(last_hidden_states_n)):
-        if len(idx_list) == 0:
-            idx_list.append(i)
-        else:
-            flag = False
-            for idx in range(len(idx_list)):
-                # print(last_hidden_states_n[i, :], last_hidden_states_n[idx,:])
-                # print(distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:]))
-                if (distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:])) < 0.9:
-                    print(distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:]))
-                    flag = True
-                    break
-            if flag:
-                idx_list.append(i)
-    print('Size: ', len(idx_list))
+    # for i in range(len(last_hidden_states_n)):
+    #     if len(idx_list) == 0:
+    #         idx_list.append(i)
+    #     else:
+    #         flag = False
+    #         for idx in range(len(idx_list)):
+    #             # print(last_hidden_states_n[i, :], last_hidden_states_n[idx,:])
+    #             # print(distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:]))
+    #             if (distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:])) < 0.9:
+    #                 print(distance.cosine(last_hidden_states_n[i, :], last_hidden_states_n[idx,:]))
+    #                 flag = True
+    #                 break
+    #         if flag:
+    #             idx_list.append(i)
+    # print('Size: ', len(idx_list))
             
     
     # print(gt_labels)
@@ -152,20 +152,21 @@ def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
         "Isomap embedding": Isomap(n_neighbors=n_neighbors, n_components=n_components),
     }
 
-    # dimensionality reduction
-    projections, timing = train_dimen_redu_models(last_hidden_states_n, embeddings)
+    # # dimensionality reduction
+    # projections, timing = train_dimen_redu_models(last_hidden_states_n, embeddings)
     
-    # Visualization
-    for name in timing:
-        title = f"{name} (time {timing[name]:.3f}s)"
-        # plot_embedding(projections[name], title)
-        # Create the DataFrame.
-        df = pd.DataFrame({
-            "x": projections[name][:, 0],
-            "y": projections[name][:, 1],
-            "label": gt_labels.ravel()  # Flatten gt_labels to shape (704,)
-        })
-        visualize_dataset(df, "./pics/"+title+f'_layer_{layer}_.pdf')
-    # plt.show()
+    # # Visualization
+    # for name in timing:
+    #     title = f"{name} (time {timing[name]:.3f}s)"
+    #     # plot_embedding(projections[name], title)
+    #     # Create the DataFrame.
+    #     df = pd.DataFrame({
+    #         "x": projections[name][:, 0],
+    #         "y": projections[name][:, 1],
+    #         "label": gt_labels.ravel()  # Flatten gt_labels to shape (704,)
+    #     })
+    #     visualize_dataset(df, "./pics/"+title+f'_layer_{layer}_.pdf')
+    # # plt.show()
+    projections = []
     return last_hidden_states_n, gt_labels, projections
 

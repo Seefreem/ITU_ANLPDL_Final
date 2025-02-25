@@ -97,6 +97,8 @@ def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
     # Process each pickle file.
     last_hidden_states_n = [] # layer 
     gt_labels = []
+    gt_pickle_files.sort() 
+    rep_pickle_files.sort()
     for idx, file_path in tqdm(enumerate(zip(gt_pickle_files, rep_pickle_files))):
         # print('file_paths: ', file_path)
         if os.path.basename(file_path[0]) != os.path.basename(file_path[1]):
@@ -123,7 +125,7 @@ def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
         # norm = np.linalg.norm(matrix)
         # matrix = matrix/norm # normalized matrix
         return matrix.numpy()
-    # last_hidden_states_n = normalize_2d(last_hidden_states_n)
+    last_hidden_states_n = normalize_2d(last_hidden_states_n)
     # reduce the size
     idx_list = []
     # for i in range(len(last_hidden_states_n)):

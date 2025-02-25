@@ -30,7 +30,7 @@ def main(args):
     # download model
     print('#### load model')
     model, tokenizer = download_and_load_model(args.model, args.output_dir)
-
+    model_config = model.config
     # generate answers: for each QA pair, generate 5 answers.
     # save the final answers and the last token representations from each layer.
     # Results are saved into files
@@ -46,19 +46,21 @@ def main(args):
     model, tokenizer = download_and_load_model(args.judge_model, args.output_dir) 
     judge_answers_in_pickles(workspace_dir, model, tokenizer)
         
-    # visualize the representations. Graphs will be saved as PDFs
     print("#### visualize representations and train GMMs")
-    for i in range(27-1, 10, -3):
+    for i in range(model_config.num_hidden_layers-1, 10, -2):
         print('Layer', i)
+        if not os.path.exists('./pics/'):
+            os.makedirs('./pics/')
         last_hidden_states_n, gt_labels, projections = isomap_dimen_redu(
             workspace_dir, layer=i, n_neighbors=10)
 
         # train the GMMs model
         models = train_gmms(last_hidden_states_n, 
-                            "./pics/"+f'BIC_and_AIC_plot_layer_{i}.pdf',
-                            n_components_start=5,
-                            n_components_end=7,
-                            n_components_step=1)
+                            "./pics/"+f'{os.path.basename(args.model)}_BIC_and_AIC_plot_layer_{i}.pdf',
+                            n_components_start=1,
+                            n_components_end=150,
+                            n_components_step=10,
+                            model_name=f'{os.path.basename(args.model)}_layer_{i}_')
 
 
     pass

@@ -73,7 +73,7 @@ def load_gmms(gmm_name):
     # reload
     means = np.load(gmm_name + '_means.npy')
     covar = np.load(gmm_name + '_covariances.npy')
-    loaded_gmm = mixture.GaussianMixture(n_components = len(means), covariance_type='full')
+    loaded_gmm = mixture.GaussianMixture(n_components = len(means), covariance_type='diag')
     loaded_gmm.precisions_cholesky_ = np.linalg.cholesky(np.linalg.inv(covar))
     loaded_gmm.weights_ = np.load(gmm_name + '_weights.npy')
     loaded_gmm.means_ = means

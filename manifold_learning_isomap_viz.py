@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pickle
 import glob
 import os
+import random
 import torch
 import pandas as pd
 from scipy.spatial import distance
@@ -77,13 +78,7 @@ def train_dimen_redu_models(data, embeddings, y=None):
         print("Time:", timing[name])
     return projections, timing
 
-
-def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
-    '''
-    data_dir:
-    n_neighbors: numbers of neighbors to calculate distance 
-    n_components: target dimensions 
-    '''
+def load_judged_data(data_dir, layer):
     # Loading data
     gt_label_dir  = os.path.join(data_dir, "judged_results")
     rep_label_dir = data_dir
@@ -111,23 +106,35 @@ def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
         # print('\n\n\n\n\n')
         with open(file_path[1], "rb") as f: # representations
             result = pickle.load(f)
+            # print(len(result['last_hidden_states']))
             last_hidden_states_n.append(result['last_hidden_states'][layer])
         # break
     last_hidden_states_n = np.vstack(last_hidden_states_n)
+    last_hidden_states_n = normalize_2d(last_hidden_states_n)
     gt_labels = np.array(gt_labels).reshape((len(gt_labels), 1))
     print('last_hidden_states_n.shape', last_hidden_states_n.shape)
     print('gt_labels.shape', gt_labels.shape)
-    # return 
-    # explicit function to normalize array
-    def normalize_2d(matrix):
-        matrix = torch.from_numpy(matrix.astype(np.float16))
-        matrix = torch.nn.functional.normalize(matrix)
-        # norm = np.linalg.norm(matrix)
-        # matrix = matrix/norm # normalized matrix
-        return matrix.numpy()
-    last_hidden_states_n = normalize_2d(last_hidden_states_n)
+    return last_hidden_states_n, gt_labels
+
+# explicit function to normalize array
+def normalize_2d(matrix):
+    matrix = torch.from_numpy(matrix.astype(np.float16))
+    matrix = torch.nn.functional.normalize(matrix)
+    # norm = np.linalg.norm(matrix)
+    # matrix = matrix/norm # normalized matrix
+    return matrix.numpy()
+
+def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
+    '''
+    data_dir:
+    n_neighbors: numbers of neighbors to calculate distance 
+    n_components: target dimensions 
+    '''
+    last_hidden_states_n, gt_labels = load_judged_data(data_dir, layer)    
+
+    # last_hidden_states_n = normalize_2d(last_hidden_states_n)
     # reduce the size
-    idx_list = []
+    # idx_list = []
     # for i in range(len(last_hidden_states_n)):
     #     if len(idx_list) == 0:
     #         idx_list.append(i)
@@ -154,21 +161,20 @@ def isomap_dimen_redu(data_dir, layer, n_neighbors, n_components=2):
         "Isomap embedding": Isomap(n_neighbors=n_neighbors, n_components=n_components),
     }
 
-    # # dimensionality reduction
-    # projections, timing = train_dimen_redu_models(last_hidden_states_n, embeddings)
+    # dimensionality reduction
+    projections, timing = train_dimen_redu_models(last_hidden_states_n, embeddings)
     
-    # # Visualization
-    # for name in timing:
-    #     title = f"{name} (time {timing[name]:.3f}s)"
-    #     # plot_embedding(projections[name], title)
-    #     # Create the DataFrame.
-    #     df = pd.DataFrame({
-    #         "x": projections[name][:, 0],
-    #         "y": projections[name][:, 1],
-    #         "label": gt_labels.ravel()  # Flatten gt_labels to shape (704,)
-    #     })
-    #     visualize_dataset(df, "./pics/"+title+f'_layer_{layer}_.pdf')
-    # # plt.show()
-    projections = []
+    # Visualization
+    for name in timing:
+        title = f"{name} (time {timing[name]:.3f}s)"
+        # plot_embedding(projections[name], title)
+        # Create the DataFrame.
+        df = pd.DataFrame({
+            "x": projections[name][:, 0],
+            "y": projections[name][:, 1],
+            "label": gt_labels.ravel()  # Flatten gt_labels to shape (704,)
+        })
+        visualize_dataset(df, "./pics/"+title+f'_layer_{layer}_.pdf')
+    # plt.show()
     return last_hidden_states_n, gt_labels, projections
 

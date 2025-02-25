@@ -40,8 +40,8 @@ def main(args):
                               tokenizer=tokenizer,
                               output_dir=workspace_dir)
 
-    # LLM as a judge # Results are saved into files
-    print("#### assess generated answers")
+    # # LLM as a judge # Results are saved into files
+    # print("#### assess generated answers")
     model, tokenizer = None, None
     model, tokenizer = download_and_load_model(args.judge_model, args.output_dir) 
     judge_answers_in_pickles(workspace_dir, model, tokenizer)
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default='coqa') # coqa, trivia_qa
     parser.add_argument("--model", type=str, default='google/gemma-2-2b-it')
-    parser.add_argument("--judge_model", type=str, default='google/gemma-2-9b-it')
+    parser.add_argument("--judge_model", type=str, default='google/gemma-2-9b-it') # meta-llama/Llama-3.1-8B-Instruct
     parser.add_argument("--output_dir", type=str, default='./cache') # required=True, 
     parser.add_argument("--data_split", type=str, default='train') 
     

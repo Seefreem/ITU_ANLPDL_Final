@@ -61,21 +61,10 @@ def train_gmms(data, output_pdf, n_components_start=1,
     # Save the plot as a PDF file.
     plt.savefig(output_pdf, format="pdf", bbox_inches="tight")
     plt.close()
-    return models  # bic model and aic model
+    return models, min_bic_n  # bic model and aic model
 
 def save_gmms(gmm_name, gmm):
     # save to file
     np.save(gmm_name + '_weights', gmm.weights_, allow_pickle=False)
     np.save(gmm_name + '_means', gmm.means_, allow_pickle=False)
     np.save(gmm_name + '_covariances', gmm.covariances_, allow_pickle=False)
-
-def load_gmms(gmm_name):
-    # reload
-    means = np.load(gmm_name + '_means.npy')
-    covar = np.load(gmm_name + '_covariances.npy')
-    loaded_gmm = mixture.GaussianMixture(n_components = len(means), covariance_type='diag')
-    loaded_gmm.precisions_cholesky_ = np.linalg.cholesky(np.linalg.inv(covar))
-    loaded_gmm.weights_ = np.load(gmm_name + '_weights.npy')
-    loaded_gmm.means_ = means
-    loaded_gmm.covariances_ = covar
-    return loaded_gmm
